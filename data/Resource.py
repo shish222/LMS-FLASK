@@ -27,3 +27,11 @@ class ChatResource(Resource):
         session.add(chat)
         session.commit()
         return jsonify({"chat_id": chat.id})
+class MessageResource(Resource):
+    def post(self):
+        if not current_user.is_authenticated:
+            return redirect('/login')
+        parser = reqparse.RequestParser()
+        parser.add_argument('text', required=True)
+        parser.add_argument('sender', required=True)
+        args = parser.parse_args()
