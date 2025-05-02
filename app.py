@@ -1,10 +1,10 @@
+import uuid
 from flask import Flask, request, redirect, render_template, url_for, jsonify
 from data.users_forms import UsersFormLogin, UsersFormRegister
 from data.db_session import global_init, create_session
 from data.__all_models import User, Chat
 from flask_login import login_user, LoginManager, current_user, logout_user
 from data import chat as ch
-from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.config[
@@ -52,10 +52,12 @@ def register():
         sess = create_session()
         user = sess.query(User).filter(User.name == form.name.data).first()
         if not user:
-            user = User(name=form.name.data)
+            user = User(name=form.name.data, uuid=uuid.uuid4().__str__())
             user.set_password(form.password.data)
             sess.add(user)
             sess.commit()
+            login_user(user)
+            return redirect("/")
         else:
             form.errors = "Неправильное имя или пароль"
     return render_template("register.html", form=form)
@@ -65,14 +67,17 @@ def register():
 def chat(chat_id):
     if not current_user.is_authenticated:
         return redirect("/login")
-    return render_template("chat.html", chat_id=chat_id, chats=get_chats())
+    session = create_session()
+    chat = session.query(Chat).get(chat_id)
+    return render_template("chat.html", chat_id=chat_id, chats=get_chats(), current_uuid=current_user.uuid,
+                           current_chat=chat)
 
 
 @app.route("/")
 def chat_index():
     if not current_user.is_authenticated:
         return redirect("/login")
-    return render_template("chat.html", chat_id=-1, chats=get_chats())
+    return render_template("chat.html", chat_id=-1, chats=get_chats(), current_uuid=current_user.uuid)
 
 
 def get_chats():

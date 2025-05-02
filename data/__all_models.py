@@ -16,6 +16,7 @@ class User(SqlAlchemyBase, UserMixin):
     __tablename__ = "users"
     id = sq.Column(sq.Integer, primary_key=True, autoincrement=True)
     name = sq.Column(sq.String, nullable=False)
+    uuid = sq.Column(sq.String, nullable=False)
     hashed_password = sq.Column(sq.String, nullable=False)
 
     def set_password(self, password):
@@ -30,7 +31,8 @@ class Message(SqlAlchemyBase):
     id = sq.Column(sq.Integer, primary_key=True, autoincrement=True)
     user = sq.Column(sq.Integer, sq.ForeignKey("users.id"))
     text = sq.Column(sq.String, nullable=False)
-    img = sq.Column(sq.String, nullable=False)
+    img = sq.Column(sq.String, nullable=True)
+    video = sq.Column(sq.String, nullable=True)
     chat_id = sq.Column(sq.Integer, sq.ForeignKey("chats.id"))
     chat = relationship("Chat", back_populates="messages")
 

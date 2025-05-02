@@ -2,7 +2,8 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#007bff">
     <title>Мессенджер</title>
     <link rel="stylesheet" href="{{ url_for("static", filename="css/chat.css") }}">
 </head>
@@ -12,29 +13,116 @@
     <aside class="sidebar">
         <div class="profile">
             <span>Чаты</span>
+            <button id="createChatBtn" class="create-chat-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>Новый чат</span>
+            </button>
         </div>
-        <ul class="contact-list">
-            {% for chat in chats %}
-                <li class="contact">
-                    {# <img src="" alt="Контакт 1" class="contact-avatar">#}
-                    <a class="contact_a" href="/{{ chat.id }}">
-                        <div class="contact-details">
-                            <span class="contact-name">{{ chat.name }}</span>
-                            {# <span class="last-message">Последнее сообщение</span>#}
-                        </div>
-                    </a>
-                </li>
-            {% endfor %}
-        </ul>
+
+        <!-- Блок управления UUID -->
+        <div class="uuid-management">
+            <div class="uuid-card">
+                <div class="uuid-header">
+                    <span class="uuid-title">Ваш UUID</span>
+                    <button class="uuid-toggle-btn" id="toggleUuidBtn">Показать/Скрыть</button>
+                </div>
+                <div class="uuid-body" id="uuidContainer" style="display: none;">
+                    <div class="uuid-input-group">
+                        <input type="text" class="uuid-input" id="userUuid" value="{{ current_uuid }}" readonly>
+                        <button class="uuid-copy-btn" type="button" id="copyUuidBtn">Копировать</button>
+                    </div>
+                </div>
+            </div>
+            <ul class="contact-list">
+                {% for chat in chats %}
+                    <li class="contact">
+                        {# <img src="" alt="Контакт 1" class="contact-avatar">#}
+                        <a class="contact_a" href="/{{ chat.id }}">
+                            <div class="contact-details">
+                                <span class="contact-name">{{ chat.name }}</span>
+                                {# <span class="last-message">Последнее сообщение</span>#}
+                            </div>
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+            <div class="logout-button-container">
+                <a href="/logout" class="logout-button">Выйти из аккаунта</a>
+            </div>
     </aside>
+
+    <!-- Модальное окно для создания чата -->
+    <div id="createChatModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Создать новый чат</h2>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="createChatForm">
+                    <div class="form-group">
+                        <label for="chatName">Название чата</label>
+                        <input type="text" id="chatName" name="name" required placeholder="Введите название чата">
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelChatCreate">Отмена</button>
+                        <button type="submit" class="btn btn-primary">Создать</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для добавления пользователя в чат -->
+    <div id="addUserModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Добавить пользователя</h2>
+                <span class="close-modal" id="closeAddUserModal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <form id="addUserForm">
+                    <div class="form-group">
+                        <label for="userUuidInput">UUID пользователя</label>
+                        <input type="text" id="userUuidInput" name="uuid" required
+                               placeholder="Введите UUID пользователя">
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="btn btn-cancel" id="cancelAddUser">Отмена</button>
+                        <button type="submit" class="btn btn-primary">Добавить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 
     <main class="chat-window">
         <header class="chat-header">
-            <img src="" alt="Контакт 1" class="contact-avatar">
-            <div class="chat-info">
-                <span class="contact-name">Контакт 1</span>
-                <span class="online-status">В сети</span>
-            </div>
+            {% if current_chat %}
+                <div class="chat-info">
+                    <span class="contact-name">{{ current_chat.name }}</span>
+                    <div class="chat-actions">
+                        <button class="chat-action-btn" id="addUserBtn" title="Добавить пользователя">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
+                                 fill="none"
+                                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="8.5" cy="7" r="4"></circle>
+                                <line x1="20" y1="8" x2="20" y2="14"></line>
+                                <line x1="23" y1="11" x2="17" y2="11"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            {% else %}
+                <div class="chat-info">
+                    <span class="welcome-message">Выберите чат или создайте новый</span>
+                </div>
+            {% endif %}
         </header>
 
         <div class="message-list" id="messageList">
@@ -71,8 +159,8 @@
                     </svg>
                     <span>Видео</span>
                 </label>
+                <input type="file" id="videoInput" accept="video/*">
             </div>
-            {#                <input type="file" id="imageInput" accept="image/*" style="display:none;">#}
             <button id="sendButton">Отправить</button>
         </div>
     </main>
@@ -109,37 +197,121 @@
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `message ${data.type}`;
 
+                // Создаем содержимое сообщения
+                const messageContent = document.createElement('div');
+                messageContent.className = 'message-content';
+
+                // Добавляем медиа-контейнер для всех медиа
+                const mediaContainer = document.createElement('div');
+                mediaContainer.className = 'media-container';
+
+                let hasMedia = false;
+                let pendingLoads = 0;
+
+                // Добавляем изображение, если оно есть
                 if (data.img != null) {
-                    let path = "{{ url_for("chat.uploaded_file",filename="") }}" + data.img;
-                    messageDiv.innerHTML = `
-                    <div class="message-content">
-                        <img class="message-image" alt="img" src="${path}">
-                        <p>${data.text}</p>
-                    </div>`;
+                    hasMedia = true;
+                    pendingLoads++;
+
+                    let imgPath = "{{ url_for("chat.uploaded_file",filename="", t="") }}" + data.img;
+                    const imgElement = document.createElement('img');
+                    imgElement.className = 'message-image';
+                    imgElement.src = imgPath;
+                    imgElement.alt = 'Изображение';
 
                     // Добавляем обработчик загрузки изображения
-                    const img = messageDiv.querySelector('.message-image');
-                    img.onload = () => {
-                        messageList.scrollTop = messageList.scrollHeight;
+                    imgElement.onload = () => {
+                        pendingLoads--;
+                        if (pendingLoads === 0) {
+                            messageList.scrollTop = messageList.scrollHeight;
+                        }
                     };
 
                     // Добавляем обработчик ошибки загрузки
-                    img.onerror = () => {
+                    imgElement.onerror = () => {
                         console.error('Ошибка загрузки изображения');
-                        messageList.scrollTop = messageList.scrollHeight;
+                        pendingLoads--;
+                        if (pendingLoads === 0) {
+                            messageList.scrollTop = messageList.scrollHeight;
+                        }
                     };
-                } else {
-                    messageDiv.innerHTML = `
-                    <div class="message-content">
-                        <p>${data.text}</p>
-                    </div>`;
 
-                    // Для текстовых сообщений сразу прокручиваем
+                    mediaContainer.appendChild(imgElement);
+                }
+
+                // Добавляем видео, если оно есть
+                if (data.video != null) {
+                    hasMedia = true;
+                    pendingLoads++;
+
+                    let videoPath = "{{ url_for("chat.uploaded_file",filename="", t="") }}" + data.video;
+                    const videoContainer = document.createElement('div');
+                    videoContainer.className = 'video-container';
+
+                    const videoElement = document.createElement('video');
+                    videoElement.className = 'message-video';
+                    videoElement.controls = true;
+
+                    const sourceElement = document.createElement('source');
+                    sourceElement.src = videoPath;
+                    sourceElement.type = 'video/mp4';
+
+                    videoElement.appendChild(sourceElement);
+                    videoElement.appendChild(document.createTextNode('Ваш браузер не поддерживает видео.'));
+
+                    // Добавляем обработчик загрузки видео
+                    videoElement.onloadedmetadata = () => {
+                        pendingLoads--;
+                        if (pendingLoads === 0) {
+                            messageList.scrollTop = messageList.scrollHeight;
+                        }
+                    };
+
+                    // Добавляем обработчик ошибки загрузки
+                    videoElement.onerror = () => {
+                        console.error('Ошибка загрузки видео');
+                        pendingLoads--;
+                        if (pendingLoads === 0) {
+                            messageList.scrollTop = messageList.scrollHeight;
+                        }
+                    };
+
+                    videoContainer.appendChild(videoElement);
+                    mediaContainer.appendChild(videoContainer);
+                }
+
+                // Добавляем медиа-контейнер в сообщение, если есть медиа
+                if (hasMedia) {
+                    messageContent.appendChild(mediaContainer);
+                    messageContent.classList.add('with-media');
+                }
+
+                // Добавляем текст сообщения
+                if (data.text && data.text.trim() !== '') {
+                    const textElement = document.createElement('p');
+                    textElement.className = 'message-text';
+                    textElement.textContent = data.text;
+                    messageContent.appendChild(textElement);
+                }
+
+                // Если нет ни медиа, ни текста
+                if (!hasMedia && (!data.text || data.text.trim() === '')) {
+                    const emptyText = document.createElement('p');
+                    emptyText.className = 'message-text empty';
+                    emptyText.textContent = '[Пустое сообщение]';
+                    messageContent.appendChild(emptyText);
+                }
+
+
+                // Если нет ожидающих загрузок медиа, прокручиваем сразу
+                if (pendingLoads === 0) {
                     setTimeout(() => {
                         messageList.scrollTop = messageList.scrollHeight;
                     }, 0);
                 }
 
+                // Добавляем контент в сообщение
+                messageDiv.appendChild(messageContent);
                 messageList.appendChild(messageDiv);
             }
         }
@@ -154,32 +326,465 @@
     const sendButton = document.getElementById('sendButton');
     const imageInput = document.getElementById('imageInput');
     const messageList = document.getElementById('messageList');
+    const videoInput = document.getElementById('videoInput');
+
+    // Создаем контейнер для предпросмотра медиа
+    const previewContainer = document.createElement('div');
+    previewContainer.className = 'media-preview-container';
+    previewContainer.style.display = 'none';
+    document.querySelector('.message-input-area').prepend(previewContainer);
+
+    // Обработчики изменения файлов
+    imageInput.addEventListener('change', function () {
+        showMediaPreview(this.files[0], 'image');
+    });
+
+    videoInput.addEventListener('change', function () {
+        showMediaPreview(this.files[0], 'video');
+    });
+
+    // Функция предпросмотра медиа
+    function showMediaPreview(file, type) {
+        if (!file) return;
+
+        previewContainer.innerHTML = '';
+        previewContainer.style.display = 'flex';
+
+        const previewCard = document.createElement('div');
+        previewCard.className = 'media-preview-card';
+
+        // Создаем кнопку закрытия
+        const closeButton = document.createElement('button');
+        closeButton.className = 'media-preview-close';
+        closeButton.innerHTML = '&times;';
+        closeButton.onclick = function () {
+            if (type === 'image') {
+                imageInput.value = '';
+            } else {
+                videoInput.value = '';
+            }
+            previewContainer.style.display = 'none';
+        };
+
+        // Создаем превью в зависимости от типа файла
+        if (type === 'image') {
+            const img = document.createElement('img');
+            img.className = 'media-preview-image';
+            img.src = URL.createObjectURL(file);
+            previewCard.appendChild(img);
+        } else if (type === 'video') {
+            const video = document.createElement('video');
+            video.className = 'media-preview-video';
+            video.src = URL.createObjectURL(file);
+            video.controls = true;
+            previewCard.appendChild(video);
+        }
+
+        // Добавляем имя файла
+        const fileName = document.createElement('span');
+        fileName.className = 'media-preview-filename';
+        fileName.textContent = file.name.length > 20 ? file.name.substring(0, 17) + '...' : file.name;
+
+        previewCard.appendChild(closeButton);
+        previewCard.appendChild(fileName);
+        previewContainer.appendChild(previewCard);
+    }
 
     sendButton.addEventListener('click', sendMessage);
 
     function sendMessage() {
         const messageText = messageInput.value.trim();
-        if (messageText !== "") {
-            {#appendMessage(messageText, 'sent');#}
+        if ((messageText !== "" || imageInput.files.length !== 0 || videoInput.files.length !== 0) && {{ chat_id }} !== -1) {
             let body = new FormData();
             body.append("chat_id", {{ chat_id }})
             body.append("text", messageText)
+
             let img = imageInput.files[0]
             if (img !== undefined) {
                 body.append("image", img)
             }
+
+            let video = videoInput.files[0]
+            if (video !== undefined) {
+                body.append("video", video)
+            }
+
             fetch("/create_message", {
                     method: 'POST',
-                    {#headers: {#}
-                    {#    'Content-Type': 'application/json'#}
                     body: body
                 }
             )
-            ;
-            messageInput.value = '';
-            imageInput.files = undefined;
+                .then(response => {
+                    if (response.ok) {
+                        // Очищаем поля ввода и превью
+                        messageInput.value = '';
+                        imageInput.value = '';
+                        videoInput.value = '';
+                        previewContainer.style.display = 'none';
+                        previewContainer.innerHTML = '';
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка отправки сообщения:', error);
+                });
+        } else if ({{ chat_id }} === -1 && messageText !== "") {
+            // Если не выбран чат, показываем уведомление
+            const notification = document.createElement('div');
+            notification.className = 'notification error';
+            notification.textContent = 'Выберите чат для отправки сообщения';
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.classList.add('show');
+            }, 10);
+
+            setTimeout(() => {
+                notification.classList.remove('show');
+                setTimeout(() => {
+                    document.body.removeChild(notification);
+                }, 300);
+            }, 3000);
         }
     }
+
+    // Добавляем обработчик нажатия клавиши Enter для отправки сообщения
+    messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+</script>
+
+<!-- Скрипт для управления модальным окном создания чата -->
+<script>
+    // Элементы модального окна
+    const createChatModal = document.getElementById('createChatModal');
+    const createChatBtn = document.getElementById('createChatBtn');
+    const closeModalBtn = document.querySelector('.close-modal');
+    const cancelChatCreateBtn = document.getElementById('cancelChatCreate');
+    const createChatForm = document.getElementById('createChatForm');
+
+    // Показать модальное окно
+    createChatBtn.addEventListener('click', () => {
+        createChatModal.style.display = 'flex';
+        document.getElementById('chatName').focus();
+    });
+
+    // Закрыть модальное окно при клике на крестик
+    closeModalBtn.addEventListener('click', () => {
+        createChatModal.style.display = 'none';
+    });
+
+    // Закрыть модальное окно при клике на кнопку "Отмена"
+    cancelChatCreateBtn.addEventListener('click', () => {
+        createChatModal.style.display = 'none';
+    });
+
+    // Закрыть модальное окно при клике вне его области
+    window.addEventListener('click', (event) => {
+        if (event.target === createChatModal) {
+            createChatModal.style.display = 'none';
+        }
+    });
+
+    // Обработка отправки формы создания чата
+    createChatForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+
+        // Получаем название чата из формы
+        const chatName = document.getElementById('chatName').value.trim();
+
+        if (!chatName) {
+            // Если название не введено, показываем сообщение об ошибке
+            showModalMessage('error', 'Введите название чата', '#createChatForm');
+            return;
+        }
+
+        // Создаем данные формы
+        const formData = new FormData();
+        formData.append('name', chatName);
+        formData.append('submit', 'Создать');
+
+        // Добавляем заголовок для Ajax-запроса
+        const headers = new Headers();
+        headers.append('X-Requested-With', 'XMLHttpRequest');
+
+        // Отправляем запрос на создание чата
+        fetch('/create_chat', {
+            method: 'POST',
+            headers: headers,
+            body: formData
+        })
+            .then(response => {
+                if (response.redirected) {
+                    // Если сервер вернул перенаправление, переходим по указанному URL
+                    window.location.href = response.url;
+                } else {
+                    // Если не получили перенаправление, пробуем получить JSON с ответом
+                    return response.json().then(data => {
+                        if (response.ok || data.success) {
+                            showModalMessage('success', 'Чат успешно создан', '#createChatForm');
+                            setTimeout(() => {
+                                // Если сервер вернул ID чата, переходим на его страницу
+                                if (data.chat_id) {
+                                    window.location.href = '/' + data.chat_id;
+                                } else {
+                                    window.location.reload();
+                                }
+                            }, 1000);
+                        } else {
+                            showModalMessage('error', data.error || 'Ошибка при создании чата', '#createChatForm');
+                        }
+                    }).catch(() => {
+                        // Если не смогли получить JSON, считаем что запрос успешен
+                        if (response.ok) {
+                            showModalMessage('success', 'Чат успешно создан', '#createChatForm');
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 1000);
+                        } else {
+                            showModalMessage('error', 'Ошибка при создании чата', '#createChatForm');
+                        }
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка при создании чата:', error);
+                showModalMessage('error', 'Произошла ошибка при создании чата', '#createChatForm');
+            });
+    });
+
+    // Функция для отображения сообщений в модальном окне
+    function showModalMessage(type, message, formSelector) {
+        // Находим форму или используем первую доступную
+        const form = formSelector ? document.querySelector(formSelector) : document.querySelector('form');
+        const formGroup = form.querySelector('.form-group');
+
+        // Проверяем, существует ли уже элемент сообщения в этой форме
+        let messageElement = form.querySelector('.modal-' + type);
+
+        // Если элемента нет, создаем его
+        if (!messageElement) {
+            messageElement = document.createElement('div');
+            messageElement.className = 'modal-' + type;
+            formGroup.parentNode.insertBefore(messageElement, formGroup);
+        }
+
+        // Устанавливаем текст сообщения и отображаем его
+        messageElement.textContent = message;
+        messageElement.style.display = 'block';
+
+        // Скрываем сообщение через 3 секунды
+        setTimeout(() => {
+            messageElement.style.display = 'none';
+        }, 3000);
+    }
+
+    // Элементы модального окна добавления пользователя
+    const addUserModal = document.getElementById('addUserModal');
+    const addUserBtn = document.getElementById('addUserBtn');
+    const closeAddUserModalBtn = document.getElementById('closeAddUserModal');
+    const cancelAddUserBtn = document.getElementById('cancelAddUser');
+    const addUserForm = document.getElementById('addUserForm');
+
+    // Показать модальное окно добавления пользователя
+    if (addUserBtn) {
+        addUserBtn.addEventListener('click', () => {
+            addUserModal.style.display = 'flex';
+            document.getElementById('userId').focus();
+        });
+    }
+
+    // Закрыть модальное окно добавления пользователя при клике на крестик
+    closeAddUserModalBtn.addEventListener('click', () => {
+        addUserModal.style.display = 'none';
+    });
+
+    // Закрыть модальное окно добавления пользователя при клике на кнопку "Отмена"
+    cancelAddUserBtn.addEventListener('click', () => {
+        addUserModal.style.display = 'none';
+    });
+
+    // Закрыть модальное окно добавления пользователя при клике вне его области
+    window.addEventListener('click', (event) => {
+        if (event.target === addUserModal) {
+            addUserModal.style.display = 'none';
+        }
+    });
+
+    // Обработка отправки формы добавления пользователя
+    if (addUserForm) {
+        addUserForm.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            // Получаем UUID пользователя
+            const userUuid = document.getElementById('userUuidInput').value.trim();
+
+            if (!userUuid) {
+                // Если UUID не введен, показываем сообщение об ошибке
+                showModalMessage('error', 'Введите UUID пользователя', '#addUserForm');
+                return;
+            }
+
+            // Создаем данные формы
+            const formData = new FormData();
+            formData.append('uuid', userUuid);
+            formData.append('chat_id', {{ chat_id }});
+            {#formData.append('submit', 'Добавить');#}
+
+            // Отправляем запрос на добавление пользователя по UUID
+            fetch('/add_user_to_chat', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => {
+                    if (response.redirected) {
+                        // Если сервер вернул перенаправление, переходим по указанному URL
+                        window.location.href = response.url;
+                    } else {
+                        // Если не получили перенаправление, пробуем обработать ответ
+                        return response.json().then(data => {
+                            if (response.ok || data.success) {
+                                showModalMessage('success', 'Пользователь успешно добавлен', '#addUserForm');
+                                setTimeout(() => {
+                                    addUserModal.style.display = 'none';
+                                    document.getElementById('userUuidInput').value = '';
+                                }, 2000);
+                            } else {
+                                showModalMessage('error', data.error || data.message || 'Ошибка при добавлении пользователя', '#addUserForm');
+                            }
+                        }).catch(() => {
+                            // Если не смогли получить JSON, считаем что произошла ошибка
+                            showModalMessage('error', 'Ошибка при добавлении пользователя', '#addUserForm');
+                        });
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка при добавлении пользователя:', error);
+                    showModalMessage('error', 'Произошла ошибка при добавлении пользователя', '#addUserForm');
+                });
+        });
+    }
+</script>
+
+<!-- Скрипт для управления функциями UUID -->
+<script>
+    // Получаем элементы UUID
+    const toggleUuidBtn = document.getElementById('toggleUuidBtn');
+    const uuidContainer = document.getElementById('uuidContainer');
+    const userUuid = document.getElementById('userUuid');
+    const copyUuidBtn = document.getElementById('copyUuidBtn');
+    const addUserUuid = document.getElementById('addUserUuid');
+    const addUserByUuidBtn = document.getElementById('addUserByUuidBtn');
+    const addUserResult = document.getElementById('addUserResult');
+
+    // Обработчик для показа/скрытия UUID
+    toggleUuidBtn.addEventListener('click', () => {
+        if (uuidContainer.style.display === 'none') {
+            uuidContainer.style.display = 'block';
+        } else {
+            uuidContainer.style.display = 'none';
+        }
+    });
+
+    // Обработчик для копирования UUID
+    copyUuidBtn.addEventListener('click', () => {
+        userUuid.select();
+        document.execCommand('copy');
+
+        // Создаем элемент для всплывающего уведомления
+        const notification = document.createElement('div');
+        notification.className = 'notification success';
+        notification.textContent = 'UUID скопирован в буфер обмена';
+        document.body.appendChild(notification);
+
+        setTimeout(() => {
+            notification.classList.add('show');
+        }, 10);
+
+        setTimeout(() => {
+            notification.classList.remove('show');
+            setTimeout(() => {
+                document.body.removeChild(notification);
+            }, 300);
+        }, 3000);
+    });
+
+    // Обработчик для добавления пользователя по UUID
+    {#if (addUserByUuidBtn && {{ chat_id }} !== -1) {#}
+    {#    addUserByUuidBtn.addEventListener('click', () => {#}
+    {#        const uuid = addUserUuid.value.trim();#}
+    {##}
+    {#        if (!uuid) {#}
+    {#            addUserResult.innerHTML = '<div class="alert alert-warning">Введите UUID пользователя</div>';#}
+    {#            return;#}
+    {#        }#}
+    {##}
+    {#        // Создаем данные формы#}
+    {#        const formData = new FormData();#}
+    {#        formData.append('uuid', uuid);#}
+    {#        formData.append("chat_id",{{ chat_id }})#}
+    {##}
+    {#        // Отправляем запрос на добавление пользователя по UUID#}
+    {#        fetch('/{{ chat_id }}/add_user_to_chat/', {#}
+    {#            method: 'POST',#}
+    {#            body: formData#}
+    {#        })#}
+    {#            .then(response => response.json())#}
+    {#            .then(data => {#}
+    {#                if (data.success) {#}
+    {#                    addUserResult.innerHTML = '<div class="alert alert-success">Пользователь успешно добавлен</div>';#}
+    {#                    addUserUuid.value = '';#}
+    {##}
+    {#                    // Скрываем сообщение через 3 секунды#}
+    {#                    setTimeout(() => {#}
+    {#                        addUserResult.innerHTML = '';#}
+    {#                    }, 3000);#}
+    {#                } else {#}
+    {#                    addUserResult.innerHTML = `<div class="alert alert-danger">${data.error || 'Ошибка при добавлении пользователя'}</div>`;#}
+    {#                }#}
+    {#            })#}
+    {#            .catch(error => {#}
+    {#                console.error('Ошибка при добавлении пользователя:', error);#}
+    {#                addUserResult.innerHTML = '<div class="alert alert-danger">Произошла ошибка при добавлении пользователя</div>';#}
+    {#            });#}
+    {#    });#}
+    {##}
+    {#// Добавляем основные стили для уведомлений, если они еще не добавлены#}
+    {#if (!document.querySelector('style#notification-styles')) {#}
+    {#    const style = document.createElement('style');#}
+    {#    style.id = 'notification-styles';#}
+    {#    style.textContent = `#}
+    {#        .notification {#}
+    {#            position: fixed;#}
+    {#            bottom: 20px;#}
+    {#            right: 20px;#}
+    {#            padding: 12px 20px;#}
+    {#            border-radius: 4px;#}
+    {#            color: white;#}
+    {#            font-weight: 500;#}
+    {#            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);#}
+    {#            transform: translateY(100px);#}
+    {#            opacity: 0;#}
+    {#            transition: all 0.3s ease;#}
+    {#            z-index: 9999;#}
+    {#        }#}
+    {#        .notification.show {#}
+    {#            transform: translateY(0);#}
+    {#            opacity: 1;#}
+    {#        }#}
+    {#        .notification.success {#}
+    {#            background-color: #4CAF50;#}
+    {#        }#}
+    {#        .notification.error {#}
+    {#            background-color: #F44336;#}
+    {#        }#}
+    {#        .notification.warning {#}
+    {#            background-color: #FF9800;#}
+    {#        }#}
+    {#    `;#}
+    {#    document.head.appendChild(style);#}
 </script>
 
 </body>
