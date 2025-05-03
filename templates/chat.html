@@ -53,6 +53,7 @@
             <div class="logout-button-container">
                 <a href="/logout" class="logout-button">Выйти из аккаунта</a>
             </div>
+        </div>
     </aside>
 
     <!-- Модальное окно для создания чата -->
@@ -196,6 +197,14 @@
                 // Создаём новый div для сообщения
                 const messageDiv = document.createElement('div');
                 messageDiv.className = `message ${data.type}`;
+
+                // Создаем тег с именем пользователя
+                if (data.type === 'received') {
+                    const usernameTag = document.createElement('span');
+                    usernameTag.className = 'username-tag';
+                    usernameTag.textContent = data.username;
+                    messageDiv.appendChild(usernameTag);
+                }
 
                 // Создаем содержимое сообщения
                 const messageContent = document.createElement('div');
@@ -710,81 +719,6 @@
             }, 300);
         }, 3000);
     });
-
-    // Обработчик для добавления пользователя по UUID
-    {#if (addUserByUuidBtn && {{ chat_id }} !== -1) {#}
-    {#    addUserByUuidBtn.addEventListener('click', () => {#}
-    {#        const uuid = addUserUuid.value.trim();#}
-    {##}
-    {#        if (!uuid) {#}
-    {#            addUserResult.innerHTML = '<div class="alert alert-warning">Введите UUID пользователя</div>';#}
-    {#            return;#}
-    {#        }#}
-    {##}
-    {#        // Создаем данные формы#}
-    {#        const formData = new FormData();#}
-    {#        formData.append('uuid', uuid);#}
-    {#        formData.append("chat_id",{{ chat_id }})#}
-    {##}
-    {#        // Отправляем запрос на добавление пользователя по UUID#}
-    {#        fetch('/{{ chat_id }}/add_user_to_chat/', {#}
-    {#            method: 'POST',#}
-    {#            body: formData#}
-    {#        })#}
-    {#            .then(response => response.json())#}
-    {#            .then(data => {#}
-    {#                if (data.success) {#}
-    {#                    addUserResult.innerHTML = '<div class="alert alert-success">Пользователь успешно добавлен</div>';#}
-    {#                    addUserUuid.value = '';#}
-    {##}
-    {#                    // Скрываем сообщение через 3 секунды#}
-    {#                    setTimeout(() => {#}
-    {#                        addUserResult.innerHTML = '';#}
-    {#                    }, 3000);#}
-    {#                } else {#}
-    {#                    addUserResult.innerHTML = `<div class="alert alert-danger">${data.error || 'Ошибка при добавлении пользователя'}</div>`;#}
-    {#                }#}
-    {#            })#}
-    {#            .catch(error => {#}
-    {#                console.error('Ошибка при добавлении пользователя:', error);#}
-    {#                addUserResult.innerHTML = '<div class="alert alert-danger">Произошла ошибка при добавлении пользователя</div>';#}
-    {#            });#}
-    {#    });#}
-    {##}
-    {#// Добавляем основные стили для уведомлений, если они еще не добавлены#}
-    {#if (!document.querySelector('style#notification-styles')) {#}
-    {#    const style = document.createElement('style');#}
-    {#    style.id = 'notification-styles';#}
-    {#    style.textContent = `#}
-    {#        .notification {#}
-    {#            position: fixed;#}
-    {#            bottom: 20px;#}
-    {#            right: 20px;#}
-    {#            padding: 12px 20px;#}
-    {#            border-radius: 4px;#}
-    {#            color: white;#}
-    {#            font-weight: 500;#}
-    {#            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.15);#}
-    {#            transform: translateY(100px);#}
-    {#            opacity: 0;#}
-    {#            transition: all 0.3s ease;#}
-    {#            z-index: 9999;#}
-    {#        }#}
-    {#        .notification.show {#}
-    {#            transform: translateY(0);#}
-    {#            opacity: 1;#}
-    {#        }#}
-    {#        .notification.success {#}
-    {#            background-color: #4CAF50;#}
-    {#        }#}
-    {#        .notification.error {#}
-    {#            background-color: #F44336;#}
-    {#        }#}
-    {#        .notification.warning {#}
-    {#            background-color: #FF9800;#}
-    {#        }#}
-    {#    `;#}
-    {#    document.head.appendChild(style);#}
 </script>
 
 </body>

@@ -19,13 +19,13 @@ def message_serializer(message, user_id):
     message_s['text'] = message.text.replace("<", "&lt;").replace(">", "&gt;")
     message_s["img"] = message.img
     message_s["video"] = message.video
-    message_s["username"] = message.user.name
     session = create_session()
     user = session.query(User).get(message.user)
     if user.id == user_id:
         message_s["type"] = "sent"
     else:
         message_s["type"] = "received"
+    message_s["username"] = user.name
     return message_s
 
 

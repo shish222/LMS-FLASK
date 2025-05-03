@@ -17,7 +17,6 @@ body {
     padding: 20px;
     display: flex;
     flex-direction: column;
-    height: 100%;
 }
 
 .profile {
@@ -878,4 +877,27 @@ input[type="file"] {
 
 .logout-button:hover {
     background-color: #d32f2f;
+}
+
+.username-tag {
+    display: inline-block;
+    font-size: 0.8em;
+    font-weight: bold;
+    padding: 2px 8px;
+    margin-bottom: 5px;
+    border-radius: 12px;
+    background-color: #f0f0f0;
+    color: #333;
+}
+
+.message.sent .username-tag {
+    background-color: #e1f5fe;
+    color: #0277bd;
+    float: right;
+}
+
+.message.received .username-tag {
+    background-color: #f3e5f5;
+    color: #7b1fa2;
+    float: left;
 }
