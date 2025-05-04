@@ -2,23 +2,18 @@ import json
 import os.path
 
 from flask.blueprints import Blueprint
-from flask import render_template, redirect, Response, make_response, jsonify, url_for, request, send_from_directory
+from flask import redirect, Response, make_response, jsonify, request, send_from_directory
 from flask_login import current_user
-from flask_restful import Api, Resource
 from .__all_models import Chat, User, Message
 from .db_session import create_session
-from json import dumps
 from werkzeug.utils import secure_filename
 
 blueprint = Blueprint('chat', __name__)
-api = Api(blueprint)
 
 
 def message_serializer(message, user_id):
-    message_s = {}
-    message_s['text'] = message.text.replace("<", "&lt;").replace(">", "&gt;")
-    message_s["img"] = message.img
-    message_s["video"] = message.video
+    message_s = {'text': message.text.replace("<", "&lt;").replace(">", "&gt;"), "img": message.img,
+                 "video": message.video}
     session = create_session()
     user = session.query(User).get(message.user)
     if user.id == user_id:
@@ -119,7 +114,57 @@ def add_user_to_chat():
     chat.users.append(user)
     session.commit()
 
-    return jsonify({"success": True, "message": "Пользователь успешно добавлен в чат"})
+    # Возвращаем информацию о добавленном пользователе
+    return jsonify({
+        "success": True,
+        "message": "Пользователь успешно добавлен в чат",
+        "user": {
+            "id": user.id,
+            "name": user.name,
+            "first_letter": user.name[0].upper()
+        },
+        "chat_id": chat.id,
+        "users_count": len(chat.users)
+    })
+
+
+@blueprint.route("/remove_user_from_chat", methods=['POST'])
+def remove_user_from_chat():
+    if not current_user.is_authenticated:
+        return jsonify({"success": False, "message": "Необходима авторизация"})
+
+    user_id = request.json.get('user_id')
+    chat_id = request.json.get('chat_id')
+
+    if not user_id or not chat_id:
+        return jsonify({"success": False, "message": "Не указаны необходимые параметры"})
+
+    session = create_session()
+    user = session.query(User).get(user_id)
+    chat = session.query(Chat).get(chat_id)
+
+    if not user:
+        return jsonify({"success": False, "message": "Пользователь не найден"})
+
+    if not chat:
+        return jsonify({"success": False, "message": "Чат не найден"})
+
+    # Проверка, что текущий пользователь участник чата
+    if current_user not in chat.users:
+        return jsonify({"success": False, "message": "У вас нет прав для выполнения этого действия"})
+
+    # Нельзя удалить самого себя
+    if user.id == current_user.id:
+        return jsonify({"success": False, "message": "Вы не можете удалить себя из чата"})
+
+    # Проверка, что пользователь находится в чате
+    if user not in chat.users:
+        return jsonify({"success": False, "message": "Пользователь не состоит в этом чате"})
+
+    chat.users.remove(user)
+    session.commit()
+
+    return jsonify({"success": True, "message": f"Пользователь {user.name} удален из чата"})
 
 
 @blueprint.route("/create_chat", methods=['GET', 'POST'])
@@ -143,11 +188,8 @@ def create_message():
     params = request.form.to_dict()
     session = create_session()
     chat = session.query(Chat).get(params['chat_id'])
-    if not chat:
+    if not chat or not current_user in chat.users:
         return make_response(jsonify({'error': 'Chat not found'}), 404)
-    if not current_user in chat.users:
-        return make_response(jsonify({'error': 'Chat not found'}), 404)
-    r = request
     if request.files:
         if 'image' in request.files:
             filename = "img/" + secure_filename(request.files['image'].filename)
@@ -170,11 +212,3 @@ def uploaded_file(t, filename):
     if not current_user.is_authenticated:
         return make_response(jsonify({'error': 'Not found'}), 404)
     return send_from_directory("uploads", path=os.path.join(t, filename).__str__(), as_attachment=True)
-
-
-@blueprint.route("/open_media/<path>")
-def open_media(path):
-    if not current_user.is_authenticated:
-        return make_response(jsonify({'error': 'Not found'}), 404)
-    _type = path.split("/")[-2]
-    return render_template("open_media.html", type=_type, path=path)
