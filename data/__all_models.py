@@ -30,11 +30,17 @@ class Message(SqlAlchemyBase):
     __tablename__ = "messages"
     id = sq.Column(sq.Integer, primary_key=True, autoincrement=True)
     user = sq.Column(sq.Integer, sq.ForeignKey("users.id"))
-    text = sq.Column(sq.String, nullable=False)
+    text = sq.Column(sq.String, nullable=False, default="")
     img = sq.Column(sq.String, nullable=True)
     video = sq.Column(sq.String, nullable=True)
     chat_id = sq.Column(sq.Integer, sq.ForeignKey("chats.id"))
     chat = relationship("Chat", back_populates="messages")
+
+    def __init__(self, **kwargs):
+        # Гарантируем, что текст не будет None
+        if 'text' not in kwargs or kwargs['text'] is None:
+            kwargs['text'] = ""
+        super(Message, self).__init__(**kwargs)
 
 
 class Chat(SqlAlchemyBase):

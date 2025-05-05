@@ -1,6 +1,7 @@
 import json
 import os.path
 
+import html
 from flask.blueprints import Blueprint
 from flask import redirect, Response, make_response, jsonify, request, send_from_directory
 from flask_login import current_user
@@ -8,20 +9,29 @@ from .__all_models import Chat, User, Message
 from .db_session import create_session
 from werkzeug.utils import secure_filename
 
+# Константы для работы с файлами
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10 МБ
+ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
+ALLOWED_VIDEO_EXTENSIONS = {'mp4', 'webm', 'ogg', 'mov'}
+
 blueprint = Blueprint('chat', __name__)
 
 
 def message_serializer(message, user_id):
-    message_s = {'text': message.text.replace("<", "&lt;").replace(">", "&gt;"), "img": message.img,
+    # Используем html.escape для более надежной защиты от XSS
+    message_s = {'text': html.escape(message.text), "img": message.img,
                  "video": message.video}
     session = create_session()
-    user = session.query(User).get(message.user)
-    if user.id == user_id:
-        message_s["type"] = "sent"
-    else:
-        message_s["type"] = "received"
-    message_s["username"] = user.name
-    return message_s
+    try:
+        user = session.query(User).get(message.user)
+        if user.id == user_id:
+            message_s["type"] = "sent"
+        else:
+            message_s["type"] = "received"
+        message_s["username"] = user.name
+        return message_s
+    finally:
+        session.close()
 
 
 @blueprint.route("/streaming_chat/<int:chat_id>")
@@ -71,19 +81,24 @@ def find_user_by_uuid():
         return jsonify({"success": False, "message": "UUID не указан"})
 
     session = create_session()
-    user = session.query(User).filter(User.uuid == uuid).first()
+    try:
+        user = session.query(User).filter(User.uuid == uuid).first()
 
-    if not user:
-        return jsonify({"success": False, "message": "Пользователь не найден"})
+        if not user:
+            return jsonify({"success": False, "message": "Пользователь не найден"})
 
-    return jsonify({
-        "success": True,
-        "user": {
-            "id": user.id,
-            "name": user.name,
-            "uuid": user.uuid
-        }
-    })
+        return jsonify({
+            "success": True,
+            "user": {
+                "id": user.id,
+                "name": user.name,
+                "uuid": user.uuid
+            }
+        })
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Ошибка при поиске пользователя: {str(e)}"})
+    finally:
+        session.close()
 
 
 @blueprint.route("/add_user_to_chat", methods=['POST'])
@@ -98,34 +113,44 @@ def add_user_to_chat():
         return jsonify({"success": False, "message": "Не указаны необходимые параметры"})
 
     session = create_session()
-    user = session.query(User).filter(User.uuid == uuid).first()
-    chat = session.query(Chat).filter(Chat.id == chat_id).first()
+    try:
+        user = session.query(User).filter(User.uuid == uuid).first()
+        chat = session.query(Chat).filter(Chat.id == chat_id).first()
 
-    if not user:
-        return jsonify({"success": False, "message": "Пользователь не найден"})
+        if not user:
+            return jsonify({"success": False, "message": "Пользователь не найден"})
 
-    if not chat:
-        return jsonify({"success": False, "message": "Чат не найден"})
+        if not chat:
+            return jsonify({"success": False, "message": "Чат не найден"})
 
-    # Проверка, что пользователь уже не добавлен
-    if user in chat.users:
-        return jsonify({"success": False, "message": "Пользователь уже добавлен в чат"})
+        # Проверка, что текущий пользователь участник чата
+        if current_user not in chat.users:
+            return jsonify({"success": False, "message": "У вас нет прав для добавления пользователей в этот чат"})
 
-    chat.users.append(user)
-    session.commit()
+        # Проверка, что пользователь уже не добавлен
+        if user in chat.users:
+            return jsonify({"success": False, "message": "Пользователь уже добавлен в чат"})
 
-    # Возвращаем информацию о добавленном пользователе
-    return jsonify({
-        "success": True,
-        "message": "Пользователь успешно добавлен в чат",
-        "user": {
-            "id": user.id,
-            "name": user.name,
-            "first_letter": user.name[0].upper()
-        },
-        "chat_id": chat.id,
-        "users_count": len(chat.users)
-    })
+        chat.users.append(user)
+        session.commit()
+
+        # Возвращаем информацию о добавленном пользователе
+        return jsonify({
+            "success": True,
+            "message": "Пользователь успешно добавлен в чат",
+            "user": {
+                "id": user.id,
+                "name": user.name,
+                "first_letter": user.name[0].upper()
+            },
+            "chat_id": chat.id,
+            "users_count": len(chat.users)
+        })
+    except Exception as e:
+        session.rollback()
+        return jsonify({"success": False, "message": f"Ошибка при добавлении пользователя: {str(e)}"})
+    finally:
+        session.close()
 
 
 @blueprint.route("/remove_user_from_chat", methods=['POST'])
@@ -140,71 +165,159 @@ def remove_user_from_chat():
         return jsonify({"success": False, "message": "Не указаны необходимые параметры"})
 
     session = create_session()
-    user = session.query(User).get(user_id)
-    chat = session.query(Chat).get(chat_id)
+    try:
+        user = session.query(User).get(user_id)
+        chat = session.query(Chat).get(chat_id)
 
-    if not user:
-        return jsonify({"success": False, "message": "Пользователь не найден"})
+        if not user:
+            return jsonify({"success": False, "message": "Пользователь не найден"})
 
-    if not chat:
-        return jsonify({"success": False, "message": "Чат не найден"})
+        if not chat:
+            return jsonify({"success": False, "message": "Чат не найден"})
 
-    # Проверка, что текущий пользователь участник чата
-    if current_user not in chat.users:
-        return jsonify({"success": False, "message": "У вас нет прав для выполнения этого действия"})
+        # Проверка, что текущий пользователь участник чата
+        if current_user not in chat.users:
+            return jsonify({"success": False, "message": "У вас нет прав для выполнения этого действия"})
 
-    # Нельзя удалить самого себя
-    if user.id == current_user.id:
-        return jsonify({"success": False, "message": "Вы не можете удалить себя из чата"})
+        # Нельзя удалить самого себя
+        if user.id == current_user.id:
+            return jsonify({"success": False, "message": "Вы не можете удалить себя из чата"})
 
-    # Проверка, что пользователь находится в чате
-    if user not in chat.users:
-        return jsonify({"success": False, "message": "Пользователь не состоит в этом чате"})
+        # Проверка, что пользователь находится в чате
+        if user not in chat.users:
+            return jsonify({"success": False, "message": "Пользователь не состоит в этом чате"})
 
-    chat.users.remove(user)
-    session.commit()
+        chat.users.remove(user)
+        session.commit()
 
-    return jsonify({"success": True, "message": f"Пользователь {user.name} удален из чата"})
+        return jsonify({"success": True, "message": f"Пользователь {user.name} удален из чата"})
+    except Exception as e:
+        session.rollback()
+        return jsonify({"success": False, "message": f"Ошибка при удалении пользователя: {str(e)}"})
+    finally:
+        session.close()
 
 
 @blueprint.route("/create_chat", methods=['GET', 'POST'])
 def create_chat():
     if not current_user.is_authenticated:
         return redirect('/login')
+
     session = create_session()
-    params = request.form.to_dict()
-    chat = Chat(name=params["name"])
-    chat.users.append(current_user)
-    local_chat = session.merge(chat)
-    session.add(local_chat)
-    session.commit()
-    return make_response(jsonify({"Create": "OK"}), 201)
+    try:
+        params = request.form.to_dict()
+
+        if "name" not in params or not params["name"].strip():
+            return make_response(jsonify({'error': 'Имя чата не может быть пустым'}), 400)
+
+        chat = Chat(name=params["name"])
+        chat.users.append(current_user)
+        local_chat = session.merge(chat)
+        session.add(local_chat)
+        session.commit()
+
+        return make_response(jsonify({
+            "Create": "OK",
+            "chat_id": local_chat.id,
+            "chat_name": local_chat.name
+        }), 201)
+    except Exception as e:
+        session.rollback()
+        return make_response(jsonify({'error': f'Ошибка при создании чата: {str(e)}'}), 500)
+    finally:
+        session.close()
+
+
+def allowed_image_file(filename):
+    return '.' in filename and \
+        filename.rsplit('.', 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+
+
+def allowed_video_file(filename):
+    return '.' in filename and \
+        filename.rsplit('.', 1)[1].lower() in ALLOWED_VIDEO_EXTENSIONS
+
+
+def ensure_upload_dirs():
+    # Проверяем и создаем необходимые директории для загрузки файлов
+    upload_dirs = ["uploads", "uploads/img", "uploads/video"]
+    for directory in upload_dirs:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
 
 
 @blueprint.route("/create_message", methods=['POST'])
 def create_message():
     if not current_user.is_authenticated:
         return redirect('/login')
+
+    # Обеспечиваем наличие директорий для загрузки
+    ensure_upload_dirs()
+
     params = request.form.to_dict()
     session = create_session()
-    chat = session.query(Chat).get(params['chat_id'])
-    if not chat or not current_user in chat.users:
-        return make_response(jsonify({'error': 'Chat not found'}), 404)
-    if request.files:
-        if 'image' in request.files:
-            filename = "img/" + secure_filename(request.files['image'].filename)
-            request.files['image'].save(os.path.join("uploads", filename))
-            message = Message(user=current_user.id, text=params['text'], img=filename)
-        elif 'video' in request.files:
-            filename = "video/" + secure_filename(request.files['video'].filename)
-            request.files['video'].save(os.path.join("uploads", filename))
-            message = Message(user=current_user.id, text=params['text'], video=filename)
-    else:
-        message = Message(user=current_user.id, text=params['text'])
-    chat.messages.append(message)
-    session.add(message)
-    session.commit()
-    return make_response(jsonify({"Create": "OK"}), 201)
+    try:
+        chat = session.query(Chat).get(params['chat_id'])
+        if not chat or not current_user in chat.users:
+            return make_response(jsonify({'error': 'Chat not found'}), 404)
+
+        message = None
+
+        if request.files:
+            if 'image' in request.files and request.files['image'].filename:
+                image_file = request.files['image']
+                if not allowed_image_file(image_file.filename):
+                    return make_response(jsonify({'error': 'Неподдерживаемый формат изображения'}), 400)
+
+                # Проверка размера файла
+                image_file.seek(0, os.SEEK_END)
+                file_size = image_file.tell()
+                image_file.seek(0)
+
+                if file_size > MAX_FILE_SIZE:
+                    return make_response(jsonify({'error': 'Размер файла превышает 10 МБ'}), 400)
+
+                try:
+                    filename = "img/" + secure_filename(image_file.filename)
+                    file_path = os.path.join("uploads", filename)
+                    image_file.save(file_path)
+                    message = Message(user=current_user.id, text=params['text'], img=filename)
+                except Exception as e:
+                    return make_response(jsonify({'error': f'Ошибка при сохранении изображения: {str(e)}'}), 500)
+
+            elif 'video' in request.files and request.files['video'].filename:
+                video_file = request.files['video']
+                if not allowed_video_file(video_file.filename):
+                    return make_response(jsonify({'error': 'Неподдерживаемый формат видео'}), 400)
+
+                # Проверка размера файла
+                video_file.seek(0, os.SEEK_END)
+                file_size = video_file.tell()
+                video_file.seek(0)
+
+                if file_size > MAX_FILE_SIZE:
+                    return make_response(jsonify({'error': 'Размер файла превышает 10 МБ'}), 400)
+
+                try:
+                    filename = "video/" + secure_filename(video_file.filename)
+                    file_path = os.path.join("uploads", filename)
+                    video_file.save(file_path)
+                    message = Message(user=current_user.id, text=params['text'], video=filename)
+                except Exception as e:
+                    return make_response(jsonify({'error': f'Ошибка при сохранении видео: {str(e)}'}), 500)
+
+        if message is None:
+            message = Message(user=current_user.id, text=params['text'])
+
+        chat.messages.append(message)
+        session.add(message)
+        session.commit()
+        return make_response(jsonify({"Create": "OK"}), 201)
+    except Exception as e:
+        session.rollback()
+        return make_response(jsonify({'error': f'Внутренняя ошибка: {str(e)}'}), 500)
+    finally:
+        session.close()
 
 
 @blueprint.route("/uploads/<t>/<filename>")
