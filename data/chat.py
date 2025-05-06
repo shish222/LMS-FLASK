@@ -19,7 +19,7 @@ blueprint = Blueprint('chat', __name__)
 
 def message_serializer(message, user_id):
     # Используем html.escape для более надежной защиты от XSS
-    message_s = {'text': html.escape(message.text), "img": message.img,
+    message_s = {'text': message.text, "img": message.img,
                  "video": message.video}
     session = create_session()
     try:
