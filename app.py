@@ -17,7 +17,9 @@ login_manager.init_app(app)
 @login_manager.user_loader
 def load_user(user_id):
     db_session = create_session()
+
     user = db_session.query(User).get(int(user_id))
+    user = db_session.merge(user)
     db_session.close()
     return user
 
@@ -84,7 +86,7 @@ async def chat(chat_id):
     chats = user.chats
     try:
         chat = session.query(Chat).get(chat_id)
-        return render_template("chat.html", chat_id=chat_id, chats=chats, current_uuid=current_user.uuid,
+        return render_template("chat.html", chat_id=chat_id, chats=chats, current_uuid=user.uuid,
                                current_chat=chat)
     finally:
         session.close()
@@ -94,7 +96,9 @@ async def chat(chat_id):
 def chat_index():
     if not current_user.is_authenticated:
         return redirect("/login")
-    return render_template("chat.html", chat_id=-1, chats=current_user.chats, current_uuid=current_user.uuid)
+    db_session = create_session()
+    user = db_session.merge(current_user)
+    return render_template("chat.html", chat_id=-1, chats=user.chats, current_uuid=user.uuid)
 
 
 # Инициализация базы данных

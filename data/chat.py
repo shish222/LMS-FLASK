@@ -114,7 +114,9 @@ def add_user_to_chat():
 
     session = create_session()
     try:
+        c_user = session.merge(current_user)
         user = session.query(User).filter(User.uuid == uuid).first()
+        user = session.merge(user)
         chat = session.query(Chat).filter(Chat.id == chat_id).first()
 
         if not user:
@@ -124,7 +126,7 @@ def add_user_to_chat():
             return jsonify({"success": False, "message": "Чат не найден"})
 
         # Проверка, что текущий пользователь участник чата
-        if current_user not in chat.users:
+        if c_user not in chat.users:
             return jsonify({"success": False, "message": "У вас нет прав для добавления пользователей в этот чат"})
 
         # Проверка, что пользователь уже не добавлен
@@ -167,7 +169,9 @@ def remove_user_from_chat():
     session = create_session()
     try:
         user = session.query(User).get(user_id)
+        user = session.merge(user)
         chat = session.query(Chat).get(chat_id)
+        c_user = session.merge(current_user)
 
         if not user:
             return jsonify({"success": False, "message": "Пользователь не найден"})
@@ -176,11 +180,11 @@ def remove_user_from_chat():
             return jsonify({"success": False, "message": "Чат не найден"})
 
         # Проверка, что текущий пользователь участник чата
-        if current_user not in chat.users:
+        if c_user not in chat.users:
             return jsonify({"success": False, "message": "У вас нет прав для выполнения этого действия"})
 
         # Нельзя удалить самого себя
-        if user.id == current_user.id:
+        if user.id == c_user.id:
             return jsonify({"success": False, "message": "Вы не можете удалить себя из чата"})
 
         # Проверка, что пользователь находится в чате
@@ -211,7 +215,8 @@ def create_chat():
             return make_response(jsonify({'error': 'Имя чата не может быть пустым'}), 400)
 
         chat = Chat(name=params["name"])
-        chat.users.append(current_user)
+        user = session.merge(current_user)
+        chat.users.append(user)
         local_chat = session.merge(chat)
         session.add(local_chat)
         session.commit()
@@ -258,7 +263,8 @@ def create_message():
     session = create_session()
     try:
         chat = session.query(Chat).get(params['chat_id'])
-        if not chat or not current_user in chat.users:
+        c_user = session.merge(current_user)
+        if not chat or not c_user in chat.users:
             return make_response(jsonify({'error': 'Chat not found'}), 404)
 
         message = None
@@ -281,7 +287,7 @@ def create_message():
                     filename = "img/" + secure_filename(image_file.filename)
                     file_path = os.path.join("uploads", filename)
                     image_file.save(file_path)
-                    message = Message(user=current_user.id, text=params['text'], img=filename)
+                    message = Message(user=c_user.id, text=params['text'], img=filename)
                 except Exception as e:
                     return make_response(jsonify({'error': f'Ошибка при сохранении изображения: {str(e)}'}), 500)
 
@@ -302,12 +308,12 @@ def create_message():
                     filename = "video/" + secure_filename(video_file.filename)
                     file_path = os.path.join("uploads", filename)
                     video_file.save(file_path)
-                    message = Message(user=current_user.id, text=params['text'], video=filename)
+                    message = Message(user=c_user.id, text=params['text'], video=filename)
                 except Exception as e:
                     return make_response(jsonify({'error': f'Ошибка при сохранении видео: {str(e)}'}), 500)
 
         if message is None:
-            message = Message(user=current_user.id, text=params['text'])
+            message = Message(user=c_user.id, text=params['text'])
 
         chat.messages.append(message)
         session.add(message)
