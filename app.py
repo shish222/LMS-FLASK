@@ -79,10 +79,11 @@ def register():
 
 @app.route("/<chat_id>")
 async def chat(chat_id):
+    if not current_user.is_authenticated:
+        return redirect("/login")
     session = create_session()
     user = session.merge(current_user)
-    if not user.is_authenticated:
-        return redirect("/login")
+
     chats = user.chats
     try:
         chat = session.query(Chat).get(chat_id)
