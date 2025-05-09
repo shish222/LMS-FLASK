@@ -20,7 +20,6 @@ def load_user(user_id):
 
     user = db_session.query(User).get(int(user_id))
     user = db_session.merge(user)
-    db_session.close()
     return user
 
 
@@ -85,12 +84,9 @@ async def chat(chat_id):
     user = session.merge(current_user)
 
     chats = user.chats
-    try:
-        chat = session.query(Chat).get(chat_id)
-        return render_template("chat.html", chat_id=chat_id, chats=chats, current_uuid=user.uuid,
-                               current_chat=chat)
-    finally:
-        session.close()
+    chat = session.query(Chat).get(chat_id)
+    return render_template("chat.html", chat_id=chat_id, chats=chats, current_uuid=user.uuid,
+                           current_chat=chat)
 
 
 @app.route("/")

@@ -22,16 +22,13 @@ def message_serializer(message, user_id):
     message_s = {'text': message.text, "img": message.img,
                  "video": message.video}
     session = create_session()
-    try:
-        user = session.query(User).get(message.user)
-        if user.id == user_id:
-            message_s["type"] = "sent"
-        else:
-            message_s["type"] = "received"
-        message_s["username"] = user.name
-        return message_s
-    finally:
-        session.close()
+    user = session.query(User).get(message.user)
+    if user.id == user_id:
+        message_s["type"] = "sent"
+    else:
+        message_s["type"] = "received"
+    message_s["username"] = user.name
+    return message_s
 
 
 @blueprint.route("/streaming_chat/<int:chat_id>")
@@ -48,6 +45,7 @@ def streaming_chat(chat_id):
         return make_response(jsonify({'error': 'Chat not found'}), 404)
 
     def stream():
+        db_session = create_session()
         messages = db_session.query(Message).filter_by(chat_id=chat_id).all()
         for message in messages:
             data = message_serializer(message, user_id)
@@ -97,8 +95,6 @@ def find_user_by_uuid():
         })
     except Exception as e:
         return jsonify({"success": False, "message": f"Ошибка при поиске пользователя: {str(e)}"})
-    finally:
-        session.close()
 
 
 @blueprint.route("/add_user_to_chat", methods=['POST'])
@@ -151,8 +147,6 @@ def add_user_to_chat():
     except Exception as e:
         session.rollback()
         return jsonify({"success": False, "message": f"Ошибка при добавлении пользователя: {str(e)}"})
-    finally:
-        session.close()
 
 
 @blueprint.route("/remove_user_from_chat", methods=['POST'])
@@ -198,8 +192,6 @@ def remove_user_from_chat():
     except Exception as e:
         session.rollback()
         return jsonify({"success": False, "message": f"Ошибка при удалении пользователя: {str(e)}"})
-    finally:
-        session.close()
 
 
 @blueprint.route("/create_chat", methods=['GET', 'POST'])
@@ -229,8 +221,6 @@ def create_chat():
     except Exception as e:
         session.rollback()
         return make_response(jsonify({'error': f'Ошибка при создании чата: {str(e)}'}), 500)
-    finally:
-        session.close()
 
 
 def allowed_image_file(filename):
@@ -322,8 +312,6 @@ def create_message():
     except Exception as e:
         session.rollback()
         return make_response(jsonify({'error': f'Внутренняя ошибка: {str(e)}'}), 500)
-    finally:
-        session.close()
 
 
 @blueprint.route("/uploads/<t>/<filename>")
